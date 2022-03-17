@@ -931,31 +931,33 @@
 	// network ------------------------------------------------
 
 	var gpio = getP8Gpio();
+	var websocket;
 
 	async function p8_establish_network_connection() {
 		var baseUrl = "localhost:8080";
-		var url = "ws://" + baseUrl;
-		var promise = null;
-		promise = fetch(baseUrl + "/register")
-			.then((response) => {
-				console.log(response);
-				url = response.json()["url"];
-				return "1";
-			})
-			.catch((err) => {
-				console.log(err);
-			});
+		var url = "ws://127.0.0.1:8000/ws/64ead116-f36b-4a7b-a958-a727fdb7ac3b";
 
 		// Send register request
 		// get user id back
 		// register socket connection here
 		// TODO: add heartbeat connection to tell if someone dropped off
 		
-		var websocket = new WebSocket(url);
+		websocket = new WebSocket(url);
+		websocket.onopen = on_open;
+		websocket.onclose = on_close;
+		websocket.onmessage = on_message;
+		websocket.onerror = on_error;
+
 	}
 
 	function on_open(event) {
 		console.log("Connected: ", event);
+		var message = JSON.stringify({
+			"action": "Subscribe",
+			"user_id": "64ead116-f36b-4a7b-a958-a727fdb7ac3b",
+			"topic": "computers"
+		});
+		websocket.send(message);
 	}
 
 	function on_close(event) {
@@ -965,6 +967,7 @@
 	function on_message(event) {
 		console.log("Message: ", event);
 		var message = JSON.parse(event.data);
+		console.log("Message: data ", message);
 	}
 
 	function on_error(event) {
