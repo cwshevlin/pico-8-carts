@@ -952,6 +952,8 @@
 
 	function on_open(event) {
 		console.log("Connected: ", event);
+		// Subscribe to current room
+		var player_data = gpio.slice(0, 6);
 		var message = JSON.stringify({
 			"action": "Subscribe",
 			"user_id": "64ead116-f36b-4a7b-a958-a727fdb7ac3b",
@@ -983,7 +985,7 @@
 	function write_network_data() {
 		// TODO CWS:
 		console.log("GPIO", gpio);
-		var player_data = gpio.slice(0, 6);
+		
 		// Send player_data over the network
 	}
 
