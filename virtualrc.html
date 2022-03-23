@@ -932,10 +932,13 @@
 
 	var gpio = getP8Gpio();
 	var websocket;
+	var current_subscribed_room = "11";
+	var LOCAL_PLAYER_DATA_SIZE = 6;
+	var user_id = "8f07e74e-77ce-4d4c-b82f-226526f1ec1f"
 
 	async function p8_establish_network_connection() {
 		var baseUrl = "localhost:8080";
-		var url = "ws://127.0.0.1:8000/ws/64ead116-f36b-4a7b-a958-a727fdb7ac3b";
+		var url = "ws://127.0.0.1:8000/ws/" + user_id;
 
 		// Send register request
 		// get user id back
@@ -947,19 +950,14 @@
 		websocket.onclose = on_close;
 		websocket.onmessage = on_message;
 		websocket.onerror = on_error;
-
 	}
 
 	function on_open(event) {
 		console.log("Connected: ", event);
 		// Subscribe to current room
 		var player_data = gpio.slice(0, 6);
-		var message = JSON.stringify({
-			"action": "Subscribe",
-			"user_id": "64ead116-f36b-4a7b-a958-a727fdb7ac3b",
-			"topic": "computers"
-		});
-		websocket.send(message);
+		current_room = "" + player_data[0] + player_data[1];
+		subscribe_to_room(current_room);
 	}
 
 	function on_close(event) {
@@ -967,7 +965,6 @@
 	}
 
 	function on_message(event) {
-		console.log("Message: ", event);
 		var message = JSON.parse(event.data);
 		console.log("Message: data ", message);
 	}
@@ -979,19 +976,36 @@
 	function read_local_data(indices) {
 		// Local player data is at indices 0-5 inclusive
 		console.log("DATA", gpio);
-		// send data over the network
+		if (gpio[0]) {
+			current_room = "" + gpio[0] + gpio[1]
+			if (current_subscribed_room !== current_room) {
+				subscribe_to_room(current_room);
+			}
+		}
 	}
 
-	function write_network_data() {
-		// TODO CWS:
-		console.log("GPIO", gpio);
-		
-		// Send player_data over the network
+	function subscribe_to_room(room) {
+		var message = JSON.stringify({
+			"action": "Subscribe",
+			"user_id": user_id,
+			"topic": room
+		});
+		websocket.send(message);
+		console.log("SUBSCRIBING TO ROOM:", message);
+		// TODO CWS: handle error?
+		current_subscribed_room = room;
+	}
+
+	function write_network_data(data) {
+		if (!!data[current_room]) {
+			for (var i = 0; i < data[current_room].length; i++) {
+				gpio[i + LOCAL_PLAYER_DATA_SIZE] = data[current_room][i];
+			}
+		}
 	}
 
 	p8_establish_network_connection();
 	gpio.subscribe(read_local_data);
-	console.log("GPIO", gpio);
 </script>
 
 <STYLE TYPE="text/css">
