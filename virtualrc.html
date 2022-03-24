@@ -933,8 +933,12 @@
 	var gpio = getP8Gpio();
 	var websocket;
 	var current_subscribed_room = "11";
+	// room x, room y, player x, player y, direction, sprite
 	var LOCAL_PLAYER_DATA_SIZE = 6;
-	var user_id = "8f07e74e-77ce-4d4c-b82f-226526f1ec1f"
+	var NETWORK_PLAYER_DATA_SIZE = 4;
+	var user_id = "155b0905-7315-42d0-9a21-e2f87e4bc22c";
+	var current_position = [];
+	var current_players_in_room = [];
 
 	async function p8_establish_network_connection() {
 		var baseUrl = "localhost:8080";
@@ -954,10 +958,6 @@
 
 	function on_open(event) {
 		console.log("Connected: ", event);
-		// Subscribe to current room
-		var player_data = gpio.slice(0, 6);
-		current_room = "" + player_data[0] + player_data[1];
-		subscribe_to_room(current_room);
 	}
 
 	function on_close(event) {
@@ -966,7 +966,8 @@
 
 	function on_message(event) {
 		var message = JSON.parse(event.data);
-		console.log("Message: data ", message);
+		write_network_data(message);
+		// When room data comes in, subscribe to each of its players
 	}
 
 	function on_error(event) {
@@ -974,13 +975,20 @@
 	}
 
 	function read_local_data(indices) {
-		// Local player data is at indices 0-5 inclusive
-		console.log("DATA", gpio);
+		// console.log("LOCAL DATA", gpio);
 		if (gpio[0]) {
 			current_room = "" + gpio[0] + gpio[1]
 			if (current_subscribed_room !== current_room) {
+				unsubscribe_from_room(current_subscribed_room);
 				subscribe_to_room(current_room);
 			}
+		}
+		for (var i = LOCAL_PLAYER_DATA_SIZE; i < 128;i += NETWORK_PLAYER_DATA_SIZE) {
+			var network_player = []
+			for (var j = 0; j < NETWORK_PLAYER_DATA_SIZE; j++) {
+				network_player[j] = gpio[i + j];
+			}
+			console.log("NETWORK PLAYER:", network_player)
 		}
 	}
 
@@ -994,6 +1002,33 @@
 		console.log("SUBSCRIBING TO ROOM:", message);
 		// TODO CWS: handle error?
 		current_subscribed_room = room;
+	}
+
+	function unsubscribe_from_room(room) {
+		for (var i = 0; i < current_players_in_room.length; i++) {
+			var message = JSON.stringify({
+				"action": "Unsubscribe",
+				"user_id": user_id,
+				"topic": current_players_in_room[i]
+			});
+			websocket.send(message);
+		}
+		var message = JSON.stringify({
+			"action": "Unsubscribe",
+			"user_id": user_id,
+			"topic": room
+		});
+		websocket.send(message);
+		console.log("UNSUBSCRIBING FROM ROOM:", message);
+	}
+
+	function publish_changes(data) {
+		var message = JSON.stringify({
+			"action": "P",
+			"user_id": user_id,
+			"topic": room
+		});
+
 	}
 
 	function write_network_data(data) {
